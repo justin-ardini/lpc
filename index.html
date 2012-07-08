@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html>
+<head>
+
+</head>
+
+<body>
+  <div id="music"><audio id="music">
+    <source src="Digitank.mp3" type="audio/mpeg">
+    <source src="Digitank.ogg" type="audio/ogg">
+  </audio></div>
+
+  <audio id="boom">
+    <source src="boom.wav" type="audio/wav">
+  </audio>
+
+  <script src="src/vector.js"></script>
+  <script src="src/game.js"></script>
+  <script src="src/entity.js"></script>
+
+  <script>
+
+var drawDebug = false;
+
+function rgba(r, g, b, a) {
+  return 'rgba(' + r.toFixed(0) + ', ' + g.toFixed(0) + ', ' + b.toFixed(0) + ', ' + a.toFixed(6) + ')';
+}
+
+// Return an object that supports at most "copies" simultaneous playbacks
+function createSound(path, copies) {
+  var elems = [], index = 0;
+  for (var i = 0; i < copies; i++) elems.push(new Audio(path));
+  return {
+    play: function() {
+      if (window.chrome) elems[index].load();
+      elems[index].play();
+      index = (index + 1) % copies;
+    }
+  };
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Game loop
+////////////////////////////////////////////////////////////////////////////////
+
+var keys = {};
+var c = document.createElement('canvas').getContext('2d');
+c.canvas.width = 800;
+c.canvas.height = 600;
+document.body.appendChild(c.canvas);
+
+// The game loop
+var game = new Game();
+var time = new Date();
+setInterval(function() {
+  var now = new Date();
+  game.update((now - time) / 1000);// * (keys[16] ? 10 : 1));
+  game.draw();
+  time = now;
+}, 1000 / 60);
+game.update(0);
+game.draw();
+
+document.onkeydown = function(e) {
+  if (e.which == 13 /* ENTER */) times.push(game.music.currentTime);
+  if (e.which == 80 /* P */) game.togglePause();
+  if (e.which == 78 /* N */) game.nextWave();
+  keys[e.which] = true;
+};
+
+document.onkeyup = function(e) {
+  keys[e.which] = false;
+};
+
+document.onmousemove = function(e) {
+  game.player.target.x = e.pageX;
+  game.player.target.y = e.pageY;
+};
+
+var times = [];
+document.onmousedown = function(e) {
+  times.push(game.music.currentTime);
+  e.preventDefault();
+};
+
+// Try to get around chrome cursor bug
+setTimeout(function() {
+  document.body.style.cursor = 'default';
+}, 750);
+setTimeout(function() {
+  document.body.style.cursor = 'none';
+}, 1000);
+  </script>
+
+  <div>Move around with WASD or arrow keys and the mouse, pause with P, and skip to the next wave with N.
+  </div>
+</body>
+</html>
