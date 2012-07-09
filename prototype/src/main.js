@@ -99,15 +99,71 @@ function calcFrames(originX, originY, width, height, nx, n) {
 
 
 ////////////////////////////////////////////////////////////////////////////////
+// class World
+////////////////////////////////////////////////////////////////////////////////
+function World() {
+  this.image = image;
+  var tileData = tiles.background;
+  this.width = tileData[0].length;
+  this.height = tileData.length;
+
+  // Create a single background visual from the individual tile images
+  var tileSize = 32;
+  var image = document.getElementById('tileset');
+  this.visual = document.createElement('canvas');
+  this.visual.width = this.width * tileSize;
+  this.visual.height = this.height * tileSize;
+  var vc = this.visual.getContext('2d');
+  var n = Math.floor(image.width / tileSize);
+  for (var x = 0; x < this.width; ++x) {
+    for (var y = 0; y < this.height; ++y) {
+      var tile = tileData[y][x];
+      if (tile == -1) continue;
+      var u = tile % n;
+      var v = (tile - u) / n;
+      vc.drawImage(image, u * tileSize, v * tileSize, tileSize, tileSize, x * tileSize, y * tileSize, tileSize, tileSize);
+    }
+  }
+}
+
+World.prototype.update = function() {
+};
+
+World.prototype.draw = function() {
+  c.drawImage(this.visual, 0, 0, this.width * 32, this.height * 32);
+};
+
+
+////////////////////////////////////////////////////////////////////////////////
 // class Player
 ////////////////////////////////////////////////////////////////////////////////
 function Player() {
   this.keys = { left: false, right: false, up: false, down: false, fire: false };
-  this.sprite = new Sprite(anims.player.standL);
-  this.box = new Box(1, 1, 120, 120);
+  //this.sprite = new Sprite(anims.baldric.standR);
+  //this.box = new Box(1, 1, 64, 64);
+  this.sprite = new Sprite(anims.fox.faceR);
+  this.box = new Box(1, 1, 160, 160);
 }
 
 Player.prototype.update = function() {
+  var vx = this.keys.right - this.keys.left;
+  var vy = this.keys.up - this.keys.down;
+
+  if (vx > 0) {
+    //this.sprite.setAnim(anims.baldric.walkR);
+    this.sprite.setAnim(anims.fox.flyR);
+  } else if (vx < 0){
+    //this.sprite.setAnim(anims.baldric.walkL);
+    this.sprite.setAnim(anims.fox.flyL);
+  }
+  if (vy > 0) {
+    //this.sprite.setAnim(anims.baldric.walkU);
+    this.sprite.setAnim(anims.fox.flyU);
+  } else if (vy < 0) {
+    //this.sprite.setAnim(anims.baldric.walkD);
+    this.sprite.setAnim(anims.fox.flyD);
+  }
+
   this.sprite.x = this.box.x - 1;
   this.sprite.y = this.box.y + this.box.height - this.sprite.anim.height;
   this.sprite.update();
@@ -123,6 +179,7 @@ Player.prototype.draw = function() {
 ////////////////////////////////////////////////////////////////////////////////
 function Game() {
   this.paused = false;
+  this.world = new World();
   this.player = new Player();
 }
 
@@ -131,6 +188,7 @@ Game.prototype.togglePause = function() {
 }
 
 Game.prototype.update = function() {
+  this.world.update();
   this.player.update();
 }
 
@@ -138,11 +196,14 @@ Game.prototype.draw = function() {
   c.fillStyle = '#eee';
   c.fillRect(0, 0, c.canvas.width, c.canvas.height);
 
+  /*
   c.fillStyle = 'black';
   c.beginPath();
   c.arc(100, 100, 100, 0, 2 * Math.PI, false);
   c.fill();
+  */
 
+  this.world.draw();
   this.player.draw();
 }
 
@@ -154,24 +215,72 @@ var c;
 var game;
 var anims = {
   setup: function() {
-    /* Plane sprite sheets are 120x120px */
+    /* Baldric sprites are 64x64px */
+    var baldric = document.getElementById('baldric');
+    var w = 64;
+    var h = 64;
+    this.baldric = {
+      standU: new Animation(baldric, w, h, calcFrames(0, 0, w, h, 1, 1), 4, false),
+      standL: new Animation(baldric, w, h, calcFrames(0, h, w, h, 1, 1), 4, false),
+      standD: new Animation(baldric, w, h, calcFrames(0, 2 * h, w, h, 1, 1), 4, false),
+      standR: new Animation(baldric, w, h, calcFrames(0, 3 * h, w, h, 1, 1), 4, false),
+      walkU: new Animation(baldric, w, h, calcFrames(w, 0, w, h, 8, 8), 4, true),
+      walkL: new Animation(baldric, w, h, calcFrames(w, h, w, h, 8, 8), 4, true),
+      walkD: new Animation(baldric, w, h, calcFrames(w, 2 * h, w, h, 8, 8), 4, true),
+      walkR: new Animation(baldric, w, h, calcFrames(w, 3 * h, w, h, 8, 8), 4, true)
+    };
+
+    /* Plane sprites are 160x160px */
     var fox = document.getElementById('fox');
-    var w = 120;
-    var h = 120;
-    this.player = {
-      standL: new Animation(fox, w, h, calcFrames(0, 0, w, h, 1, 1), 3, false),
-      standR: new Animation(fox, w, h, calcFrames(0, h, w, h, 1, 1), 3, false)
+    var w = 160;
+    var h = 160;
+    this.fox = {
+      faceU: new Animation(fox, w, h, calcFrames(0, 0, w, h, 1, 1), 3, false),
+      faceUL: new Animation(fox, w, h, calcFrames(4 * w, 0, w, h, 1, 1), 3, false),
+      faceL: new Animation(fox, w, h, calcFrames(8 * w, 0, w, h, 1, 1), 3, false),
+      faceDL: new Animation(fox, w, h, calcFrames(12 * w, 0, w, h, 1, 1), 3, false),
+      faceD: new Animation(fox, w, h, calcFrames(0, h, w, h, 1, 1), 3, false),
+      faceDR: new Animation(fox, w, h, calcFrames(4 * w, h, w, h, 1, 1), 3, false),
+      faceR: new Animation(fox, w, h, calcFrames(8 * w, h, w, h, 1, 1), 3, false),
+      faceUR: new Animation(fox, w, h, calcFrames(12 * w, h, w, h, 1, 1), 3, false),
+      flyU: new Animation(fox, w, h, calcFrames(0, 2 * h, w, h, 4, 4), 2, true),
+      flyUL: new Animation(fox, w, h, calcFrames(4 * w, 2 * h, w, h, 4, 4), 2, true),
+      flyL: new Animation(fox, w, h, calcFrames(8 * w, 2 * h, w, h, 4, 4), 2, true),
+      flyDL: new Animation(fox, w, h, calcFrames(12 * w, 2 * h, w, h, 4, 4), 2, true),
+      flyD: new Animation(fox, w, h, calcFrames(0, 3 * h, w, h, 4, 4), 2, true),
+      flyDR: new Animation(fox, w, h, calcFrames(4 * w, 3 * h, w, h, 4, 4), 2, true),
+      flyR: new Animation(fox, w, h, calcFrames(8 * w, 3 * h, w, h, 4, 4), 2, true),
+      flyUR: new Animation(fox, w, h, calcFrames(12 * w, 3 * h, w, h, 4, 4), 2, true)
     };
   }
 };
 
+var tiles = {
+  setup: function() {
+    this.background = new Array(20);
+    for (var i = 0; i < this.background.length; ++i) {
+      this.background[i] = new Array(30);
+    }
+
+    for (var i = 0; i < this.background.length; ++i) {
+      for (var j = 0; j < this.background[0].length; ++j) {
+        if (Math.random() < 0.95) {
+          this.background[i][j] = 20;
+        } else {
+          this.background[i][j] = 0;
+        }
+      }
+    }
+  }
+};
 
 
 ////////////////////////////////////////////////////////////////////////////////
 // Game Loop
 ////////////////////////////////////////////////////////////////////////////////
 window.onload = function() {
-  c = document.getElementById('screen').getContext('2d');
+  c = document.getElementById('screen').getContext('2d'); 
+  tiles.setup();
   anims.setup();
   game = new Game();
   var time = new Date();
