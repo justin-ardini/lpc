@@ -252,6 +252,88 @@ PlayerPlane.prototype.draw = function() {
 
 
 ////////////////////////////////////////////////////////////////////////////////
+// class TextBox
+////////////////////////////////////////////////////////////////////////////////
+var TEXT_BOX_X_MARGIN = 6;
+var TEXT_BOX_Y_MARGIN = 6;
+var TEXT_SIZE = 13;
+
+function TextBox(text, width, xCenter, yCenter) {
+	this.textArray = null;
+	this.text = text;
+  this.maxWidth = width;
+  this.textSize = 24; // TODO
+  this.xCenter = xCenter;
+  this.yCenter = yCenter;
+}
+
+// Private helper
+// Splits up a string into an array of phrases based on the width of the text box
+TextBox.prototype.splitUpText = function(phrase) {
+	var words = phrase.split(" ");
+	var phraseArray = new Array();
+	var lastPhrase = "";
+	c.font = "12px sans serif"; // TODO
+	var measure = 0;
+	for (var i = 0; i < words.length; ++i) {
+		var word = words[i];
+		measure = c.measureText(lastPhrase + word).width;
+		if (measure < this.maxWidth) {
+			lastPhrase += " " + word;
+		} else {
+			if (lastPhrase.length > 0) phraseArray.push(lastPhrase);
+			lastPhrase = word;
+		}
+		if (i == words.length - 1) {
+			phraseArray.push(lastPhrase);
+			break;
+		}
+	}
+	return phraseArray;
+}
+
+TextBox.prototype.draw = function() {
+	if (this.textArray === null) {
+		this.textArray = this.splitUpText(this.text);
+	}
+
+	var numLines = this.textArray.length;
+	if (numLines < 1) return;
+
+	// Calculate the height of all lines and the widest line's width
+	c.font = this.textSize + 'px Times, serif';
+	var lineHeight = this.textSize + 2;
+	var textHeight = lineHeight * numLines;
+	var textWidth = -1;
+	for (var i = 0; i < numLines; ++i) {
+		var currWidth = c.measureText(this.textArray[i]).width;
+		if (textWidth < currWidth) {
+			textWidth = currWidth;
+		}
+	}
+
+	// Draw the box
+	c.fillStyle = '#BFBFBF'; // TODO: Fix box colors
+	c.strokeStyle = '#7F7F7F';
+	c.lineWidth = 1;
+	var xLeft = this.xCenter - textWidth / 2 - TEXT_BOX_X_MARGIN;
+	var yBottom = this.yCenter - textHeight / 2 - TEXT_BOX_Y_MARGIN;
+	c.fillRect(xLeft, yBottom, textWidth + TEXT_BOX_X_MARGIN * 2, textHeight + TEXT_BOX_Y_MARGIN * 2);
+	c.strokeRect(xLeft, yBottom, textWidth + TEXT_BOX_X_MARGIN * 2, textHeight + TEXT_BOX_Y_MARGIN * 2);
+
+	// Draw the text
+	c.fillStyle = 'black';
+	c.textAlign = 'center';
+	// yCurr starts at the top, so subtract half of height of box
+	var yCurr = this.yCenter + 4 - (numLines - 1) * lineHeight / 2;
+	for (var i = 0; i < numLines; ++i) {
+		c.fillText(this.textArray[i], this.xCenter, yCurr);
+		yCurr += lineHeight;
+	}
+}
+
+
+////////////////////////////////////////////////////////////////////////////////
 // class Game
 ////////////////////////////////////////////////////////////////////////////////
 function Game() {
@@ -259,6 +341,7 @@ function Game() {
   this.world = new World();
   //this.player = new PlayerPlane();
   this.player = new PlayerHuman();
+  this.testTextBox = new TextBox("Unnnnhhhhhh...Where am I?  Where's my helmet?  Where's my plane?", 350, c.canvas.width / 2, 100);
 }
 
 Game.prototype.togglePause = function() {
@@ -286,6 +369,7 @@ Game.prototype.draw = function() {
   this.world.draw();
   this.player.draw();
   c.restore();
+  this.testTextBox.draw();
 }
 
 
