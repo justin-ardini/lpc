@@ -27,12 +27,10 @@ Box.prototype.draw = function(c) {
 // class Animation
 // class Sprite
 ////////////////////////////////////////////////////////////////////////////////
-var tileSize = 1.0; // TODO
-
 function Animation(image, width, height, frames, speed, loop) {
   this.image = image;
-  this.width = width / tileSize;
-  this.height = height / tileSize;
+  this.width = width;
+  this.height = height;
   this.frames = frames;
   this.speed = speed;
   this.loop = loop;
@@ -41,7 +39,7 @@ function Animation(image, width, height, frames, speed, loop) {
 
 Animation.prototype.draw = function(x, y, frame) {
   var offset = this.frames[frame % this.frames.length];
-  c.drawImage(this.image, offset.x, offset.y, this.width * tileSize, this.height * tileSize, Math.round(x * tileSize) / tileSize, Math.round(y * tileSize) / tileSize, this.width, this.height);
+  c.drawImage(this.image, offset.x, offset.y, this.width, this.height, x, y, this.width, this.height);
 };
 
 function Sprite(anim) {
@@ -58,11 +56,13 @@ Sprite.prototype.update = function() {
     this.countdown = 0;
     if (++this.frame >= this.anim.frames.length) {
       this.frame = 0;
-      if (this.anim.next) {
-        this.anim = this.anim.next;
-      } else if (!this.anim.loop) {
-        this.frame = this.anim.frames.length - 1;
-        this.isDone = true;
+      if (!this.anim.loop) {
+        if (this.anim.next) {
+          this.anim = this.anim.next;
+        } else {
+          this.frame = this.anim.frames.length - 1;
+          this.isDone = true;
+        }
       }
     }
   }
@@ -73,7 +73,7 @@ Sprite.prototype.draw = function() {
 };
 
 Sprite.prototype.setAnim = function(anim) {
-  if (this.anim != anim) {
+  if (this.anim != anim && anim !== null) {
     this.anim = anim;
     this.frame = 0;
     this.countdown = 0;
@@ -126,7 +126,7 @@ function World() {
   }
 }
 
-World.prototype.update = function() {
+World.prototype.update = function(seconds) {
 };
 
 World.prototype.draw = function() {
@@ -135,33 +135,53 @@ World.prototype.draw = function() {
 
 
 ////////////////////////////////////////////////////////////////////////////////
-// class Player
+// class PlayerHuman
 ////////////////////////////////////////////////////////////////////////////////
-function Player() {
+var HUMAN_VELOCITY = 100;
+
+function PlayerHuman() {
   this.keys = { left: false, right: false, up: false, down: false, fire: false };
-  //this.sprite = new Sprite(anims.baldric.standR);
-  //this.box = new Box(1, 1, 64, 64);
-  this.sprite = new Sprite(anims.fox.faceR);
-  this.box = new Box(1, 1, 160, 160);
+  this.sprite = new Sprite(anims.baldric.standD);
+  this.box = new Box(1, 1, 64, 64);
 }
 
-Player.prototype.update = function() {
+PlayerHuman.prototype.update = function(seconds) {
   var vx = this.keys.right - this.keys.left;
   var vy = this.keys.up - this.keys.down;
 
-  if (vx > 0) {
-    //this.sprite.setAnim(anims.baldric.walkR);
-    this.sprite.setAnim(anims.fox.flyR);
-  } else if (vx < 0){
-    //this.sprite.setAnim(anims.baldric.walkL);
-    this.sprite.setAnim(anims.fox.flyL);
-  }
-  if (vy > 0) {
-    //this.sprite.setAnim(anims.baldric.walkU);
-    this.sprite.setAnim(anims.fox.flyU);
-  } else if (vy < 0) {
-    //this.sprite.setAnim(anims.baldric.walkD);
-    this.sprite.setAnim(anims.fox.flyD);
+  // update sprite
+  if (vx == 0) {
+    this.box.y -= HUMAN_VELOCITY * vy * seconds;
+    if (vy > 0) {
+      this.sprite.setAnim(anims.baldric.walkU);
+    } else if (vy < 0) {
+      this.sprite.setAnim(anims.baldric.walkD);
+    } else {
+      this.sprite.setAnim(this.sprite.anim.next);
+    }
+  } else if (vy == 0) {
+    this.box.x += HUMAN_VELOCITY * vx * seconds;
+    if (vx > 0) {
+      this.sprite.setAnim(anims.baldric.walkR);
+    } else if (vx < 0) {
+      this.sprite.setAnim(anims.baldric.walkL);
+    } else {
+      this.sprite.setAnim(this.sprite.anim.next);
+    }
+  } else if (this.sprite.anim === anims.baldric.walkR || this.sprite.anim === anims.baldric.walkL) { // already walking R/L
+    this.box.x += HUMAN_VELOCITY * vx * seconds;
+    if (vx > 0) {
+      this.sprite.setAnim(anims.baldric.walkR);
+    } else {
+      this.sprite.setAnim(anims.baldric.walkL);
+    } 
+  } else {
+    this.box.y -= HUMAN_VELOCITY * vy * seconds;
+    if (vy > 0) {
+      this.sprite.setAnim(anims.baldric.walkU);
+    } else {
+      this.sprite.setAnim(anims.baldric.walkD);
+    }
   }
 
   this.sprite.x = this.box.x - 1;
@@ -169,7 +189,64 @@ Player.prototype.update = function() {
   this.sprite.update();
 }
 
-Player.prototype.draw = function() {
+PlayerHuman.prototype.draw = function() {
+  this.sprite.draw();
+}
+
+
+////////////////////////////////////////////////////////////////////////////////
+// class PlayerPlane
+////////////////////////////////////////////////////////////////////////////////
+var PLANE_VELOCITY = 300;
+
+function PlayerPlane() {
+  this.keys = { left: false, right: false, up: false, down: false, fire: false };
+  this.sprite = new Sprite(anims.fox.flyR);
+  this.box = new Box(0, 0, 160, 160);
+}
+
+PlayerPlane.prototype.update = function(seconds) {
+  var vx = this.keys.right - this.keys.left;
+  var vy = this.keys.up - this.keys.down;
+
+  if (vx == 0 || vy == 0) {
+    this.box.x += PLANE_VELOCITY * vx * seconds;
+    this.box.y -= PLANE_VELOCITY * vy * seconds;
+  } else {
+    var adj = Math.sqrt(PLANE_VELOCITY * PLANE_VELOCITY * 0.5);
+    this.box.x += adj * vx * seconds;
+    this.box.y -= adj * vy * seconds;
+  }
+
+  // update sprite
+  if (vx > 0) {
+    if (vy > 0) {
+      this.sprite.setAnim(anims.fox.flyUR);
+    } else if (vy == 0) {
+      this.sprite.setAnim(anims.fox.flyR);
+    } else {
+      this.sprite.setAnim(anims.fox.flyDR);
+    }
+  } else if (vx == 0) {
+    if (vy > 0) {
+      this.sprite.setAnim(anims.fox.flyU);
+    } else if (vy < 0) {
+      this.sprite.setAnim(anims.fox.flyD);
+    }
+  } else if (vy > 0) {
+    this.sprite.setAnim(anims.fox.flyUL);
+  } else if (vy == 0) {
+    this.sprite.setAnim(anims.fox.flyL);
+  } else {
+    this.sprite.setAnim(anims.fox.flyDL);
+  }
+
+  this.sprite.x = this.box.x - 1;
+  this.sprite.y = this.box.y + this.box.height - this.sprite.anim.height;
+  this.sprite.update();
+}
+
+PlayerPlane.prototype.draw = function() {
   this.sprite.draw();
 }
 
@@ -180,16 +257,17 @@ Player.prototype.draw = function() {
 function Game() {
   this.paused = false;
   this.world = new World();
-  this.player = new Player();
+  //this.player = new PlayerPlane();
+  this.player = new PlayerHuman();
 }
 
 Game.prototype.togglePause = function() {
   this.paused = !this.paused;
 }
 
-Game.prototype.update = function() {
-  this.world.update();
-  this.player.update();
+Game.prototype.update = function(seconds) {
+  this.world.update(seconds);
+  this.player.update(seconds);
 }
 
 Game.prototype.draw = function() {
@@ -203,8 +281,11 @@ Game.prototype.draw = function() {
   c.fill();
   */
 
+  c.save();
+  c.translate((c.canvas.width - this.player.box.width) * 0.5 - this.player.box.x, (c.canvas.height - this.player.box.height) * 0.5 - this.player.box.y);
   this.world.draw();
   this.player.draw();
+  c.restore();
 }
 
 
@@ -229,6 +310,10 @@ var anims = {
       walkD: new Animation(baldric, w, h, calcFrames(w, 2 * h, w, h, 8, 8), 4, true),
       walkR: new Animation(baldric, w, h, calcFrames(w, 3 * h, w, h, 8, 8), 4, true)
     };
+    this.baldric.walkU.next = this.baldric.standU;
+    this.baldric.walkL.next = this.baldric.standL;
+    this.baldric.walkD.next = this.baldric.standD;
+    this.baldric.walkR.next = this.baldric.standR;
 
     /* Plane sprites are 160x160px */
     var fox = document.getElementById('fox');
